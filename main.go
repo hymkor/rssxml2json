@@ -20,19 +20,41 @@ type Rss struct {
 	Item    []Item   `xml:"channel>item"`
 }
 
-func mains() error {
+func read(r io.Reader) ([]Item, error) {
 	var rss Rss
 
-	in, err := io.ReadAll(os.Stdin)
+	in, err := io.ReadAll(r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = xml.Unmarshal(in, &rss)
-	if err != nil {
-		return err
+	return rss.Item, err
+}
+
+func mains() error {
+	var items []Item
+	if len(os.Args) > 1 {
+		for _, fn := range os.Args[1:] {
+			in, err := os.Open(fn)
+			if err != nil {
+				return err
+			}
+			_items, err := read(in)
+			in.Close()
+			if err != nil {
+				return err
+			}
+			items = append(items, _items...)
+		}
+	} else {
+		var err error
+		items, err = read(os.Stdin)
+		if err != nil {
+			return err
+		}
 	}
-	// fmt.Fprintf(os.Stderr, "%d records\n", len(rss.Item))
-	out, err := json.Marshal(&rss.Item)
+	// fmt.Fprintf(os.Stderr, "%d records\n", len(items))
+	out, err := json.Marshal(&items)
 	if err != nil {
 		return err
 	}
